@@ -1,0 +1,154 @@
+---
+title: "HW5"
+author: "Cesar Dao (cad4837)"
+date: "2024-02-29"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(mosaic)
+library(tidyverse)
+library(knitr)
+```
+
+[Repository Link](https://github.com/cedaco/SDS315_HW5)
+
+## Problem 1
+
+Our null hypothesis is the following: securities trades from the Iron Bank are accuarately flagged at the same 2.4% baseline rate when compared to other traders and the Iron Bank is not committing unlawful trades.
+
+We are using the given test statistics of 70 flagged trades over 2021 total trades by the iron bank to analyze the hypothesis.
+
+
+```{r, echo = FALSE}
+
+simulated_trades = rbinom(100000, 2021, 0.024)
+
+data = data.frame(trades = simulated_trades)
+
+ggplot(data) + geom_histogram(aes(x = trades)) + labs(title = "Simulation of Flagged Trades", x = "Flagged Trade Amount", y = "Frequency")
+
+p_value = mean(simulated_trades >= 70)
+cat("Our P Value is:", p_value)
+
+
+
+```
+
+As we can see, our calculated P Value is around 0.002. This means that there is around a 0.2% chance that the Iron Bank is only committing lawful trades. Our graph confirms this showing that 70 flagged trades for 2021 total trades (after being re-simulated 100000 times), is highly unlikely. For these reasons, I believe that we can not confirm the null hypothesis.
+
+## Problem 2
+
+Our null hypothesis is that Gourmet Bites follows the overall 3% baseline for errors health code violation due to random chance. 
+
+Our test statistic is the 8 health code violations gourmet bites had over their 50 locations
+
+```{r, echo = FALSE}
+simulated_inspections = rbinom(100000, 50, 0.03)
+
+data = data.frame(inspections = simulated_inspections)
+
+ggplot(data) + geom_histogram(aes(x = inspections), bins = 10) + labs(title = "Simulation of Health Code Violations", x = "Health Code Violations Amount", y = "Frequency")
+
+p_value = mean(simulated_inspections >= 8)
+cat("Our P Value is:", p_value)
+```
+As we can see, our calculated P Value is around 0.00015. This means that there is a 0.015% chance that all 8 of the violations that Gourmet Bites received were due to random chance, meaning that it was highly unlikely that this occurred. Our graph confirms this showing that 8 health code violations for 50 stores (after being re-simulated 100000 times), is highly unlikely. This leads me to not be able to confirm the null hypothesis.
+
+
+
+
+## Problem 3
+
+```{r, echo = FALSE}
+chi_square_a = function(sentence, letter_table) {
+  
+  letter_table$Probability = letter_table$Probability/sum(letter_table$Probability)
+  
+  preprocess_sentence = gsub("[^A-Za-z]", "", sentence)
+  preprocess_sentence = toupper(preprocess_sentence)
+  
+  letter_counts = table(factor(strsplit(preprocess_sentence, "")[[1]], levels = letter_table$Letter))
+  
+  letters = sum(letter_counts)
+  expected_letter_counts = letters * letter_table$Probability
+  
+  chi_square = sum((letter_counts - expected_letter_counts)^2 / expected_letter_counts)
+  
+  return(chi_square)
+}
+
+sentences_chi_squares = numeric(0)
+sentences = readLines("brown_sentences.txt")
+letter_frequencies = read.csv("letter_frequencies.csv")
+
+count = 1
+for (i in sentences) {
+  looped_sentence = chi_square_a(i, letter_frequencies)
+  sentences_chi_squares[count] = looped_sentence
+  count = count + 1
+}
+
+```
+
+```{r, echo = FALSE}
+chi_square_b = function(sentence, letter_table, null_distribution) {
+  
+  letter_table$Probability = letter_table$Probability/sum(letter_table$Probability)
+  
+  preprocess_sentence = gsub("[^A-Za-z]", "", sentence)
+  preprocess_sentence = toupper(preprocess_sentence)
+  
+  letter_counts = table(factor(strsplit(preprocess_sentence, "")[[1]], levels = letter_table$Letter))
+  
+  letters = sum(letter_counts)
+  
+  expected_letter_counts = letters * letter_table$Probability
+  
+  chi_square = sum((letter_counts - expected_letter_counts)^2 / expected_letter_counts)
+  p_value = mean(null_distribution >= chi_square)
+  
+  return(list(chi_square = chi_square, p_value = p_value))
+}
+
+sentences = readLines("brown_sentences.txt")
+letter_frequencies = read.csv("letter_frequencies.csv")
+null_distribution = numeric(0)
+for (i in sentences) {
+  looped_sentence = chi_square_a(i, letter_frequencies)
+  null_distribution = c(null_distribution, looped_sentence)
+}
+
+provided_sentences = c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+p_values = numeric(length(provided_sentences))
+chi_squares = numeric(length(provided_sentences))
+
+for (i in 1:length(provided_sentences)) {
+  result = chi_square_b(provided_sentences[i], letter_frequencies, null_distribution)
+  chi_squares[i] = result$chi_square
+  p_values[i] = result$p_value
+}
+
+p_values_table = data.frame(Sentence = provided_sentences, P_Value = round(p_values, 3))
+
+kable(p_values_table, align = c("l", "r"), col.names = c("Sentence", "P-Value"), caption = "P-values for Given Ten Sentences")
+```
+
+Sentence number 6 has a much lower p value compared to the other sentences, sitting at 0.009. It is also the longest/most complex of all the sentences. This information leads me to believe that sentence 6 is the AI made sentence.
+
+
